@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<behavior name="RSN Handover Demo">
+  <executable package_path="rsn_flexbe_behaviors.handover_demo_sm" class="HandoverDemoSM" />
+  <tagstring>rsn handover flexbe</tagstring>
+  <author>huitao</author>
+  <date>2026-04-29</date>
+  <description>
+    Linear FlexBE behavior for the RSN voice-guided xArm/ZED handover demo.
+  </description>
+
+  <params>
+    <param type="numeric" name="service_timeout_sec" default="10.0" label="Service timeout" hint="Timeout for normal Trigger service calls.">
+      <min value="0.1" />
+      <max value="300.0" />
+    </param>
+    <param type="numeric" name="voice_timeout_sec" default="30.0" label="Voice timeout" hint="Maximum time to wait for a voice target.">
+      <min value="0.1" />
+      <max value="300.0" />
+    </param>
+    <param type="numeric" name="instrument_move_retry_count" default="39" label="Instrument retries" hint="Retries after move_to_instrument returns success=false.">
+      <min value="0" />
+      <max value="200" />
+    </param>
+    <param type="numeric" name="instrument_move_retry_delay_sec" default="0.5" label="Instrument retry delay" hint="Delay between instrument move retries.">
+      <min value="0.0" />
+      <max value="10.0" />
+    </param>
+    <param type="numeric" name="hand_move_retry_count" default="19" label="Hand retries" hint="Retries after move_to_hand returns success=false.">
+      <min value="0" />
+      <max value="200" />
+    </param>
+    <param type="numeric" name="hand_move_retry_delay_sec" default="1.0" label="Hand retry delay" hint="Delay between hand move retries.">
+      <min value="0.0" />
+      <max value="10.0" />
+    </param>
+    <param type="numeric" name="wait_for_release_timeout_sec" default="120.0" label="Release timeout" hint="Maximum time to block on wait_for_release.">
+      <min value="0.1" />
+      <max value="600.0" />
+    </param>
+    <param type="numeric" name="instrument_node_exit_delay_sec" default="1.5" label="Instrument exit delay" hint="Delay before launching zed_hand_node to let instrument detection release the camera.">
+      <min value="0.0" />
+      <max value="30.0" />
+    </param>
+    <param type="text" name="hand_node_package" default="rsn" label="Hand node package" hint="Package used by LaunchHandNodeState." />
+    <param type="text" name="hand_node_executable" default="zed_hand_node" label="Hand node executable" hint="Executable used by LaunchHandNodeState." />
+    <param type="numeric" name="hand_node_startup_delay_sec" default="0.5" label="Hand launch delay" hint="Delay before checking hand node service availability.">
+      <min value="0.0" />
+      <max value="30.0" />
+    </param>
+    <param type="numeric" name="hand_node_service_timeout_sec" default="20.0" label="Hand service timeout" hint="Maximum time to wait for hand node services after launch.">
+      <min value="0.1" />
+      <max value="300.0" />
+    </param>
+    <param type="text" name="hand_node_params_file" default="" label="Hand node params" hint="Optional zed_hand_node params file. Empty uses rsn/config/zed_hand_params.yaml." />
+  </params>
+</behavior>
