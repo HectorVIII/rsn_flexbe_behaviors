@@ -20,7 +20,7 @@ from rsn_flexbe_behaviors.states.wait_for_voice_target_state import (
 
 
 class HandoverDemoSM(Behavior):
-    """Linear FlexBE behavior for the RSN handover demo."""
+    """FlexBE behavior for the RSN handover demo."""
 
     def __init__(self, node):
         """Initialize the behavior and its FlexBE parameters."""
@@ -49,7 +49,8 @@ class HandoverDemoSM(Behavior):
         self.add_parameter('hand_node_params_file', '')
 
     def create(self):
-        """Create the linear handover state machine."""
+        """Create the handover state machine with basic recovery paths."""
+        # x:3050 y:40, x:3050 y:260
         state_machine = OperatableStateMachine(outcomes=['finished', 'failed'])
         state_machine.userdata.target_class = ''
         state_machine.userdata.response_message = ''
@@ -92,8 +93,8 @@ class HandoverDemoSM(Behavior):
                 'Wait For Voice Target',
                 WaitForVoiceTargetState(timeout_sec=self.voice_timeout_sec),
                 transitions={'received': 'Start Instrument Detection',
-                             'timeout': 'failed',
-                             'unavailable': 'failed'},
+                             'timeout': 'Abort Return To P0',
+                             'unavailable': 'Abort Return To P0'},
                 autonomy={'received': Autonomy.Off,
                           'timeout': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -108,8 +109,8 @@ class HandoverDemoSM(Behavior):
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Move To Instrument',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Abort Return To P0',
+                             'unavailable': 'Abort Return To P0'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -129,8 +130,8 @@ class HandoverDemoSM(Behavior):
                     retry_delay_sec=self.instrument_move_retry_delay_sec
                 ),
                 transitions={'done': 'Close Gripper',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Abort Return To P0',
+                             'unavailable': 'Abort Return To P0'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -145,8 +146,8 @@ class HandoverDemoSM(Behavior):
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Lift After Grasp',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Abort Open Gripper',
+                             'unavailable': 'Abort Open Gripper'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -161,8 +162,8 @@ class HandoverDemoSM(Behavior):
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Wait For Instrument Camera Release',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Abort Open Gripper',
+                             'unavailable': 'Abort Open Gripper'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -189,8 +190,8 @@ class HandoverDemoSM(Behavior):
                     service_timeout_sec=self.hand_node_service_timeout_sec
                 ),
                 transitions={'launched': 'Start Hand Detection',
-                             'failed': 'failed',
-                             'service_unavailable': 'failed'},
+                             'failed': 'Return Instrument To Source',
+                             'service_unavailable': 'Return Instrument To Source'},
                 autonomy={'launched': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'service_unavailable': Autonomy.Off}
@@ -204,8 +205,8 @@ class HandoverDemoSM(Behavior):
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Move To Hand',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Return Instrument To Source',
+                             'unavailable': 'Return Instrument To Source'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -225,8 +226,8 @@ class HandoverDemoSM(Behavior):
                     retry_delay_sec=self.hand_move_retry_delay_sec
                 ),
                 transitions={'done': 'Wait For Release',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Return Instrument To Source',
+                             'unavailable': 'Return Instrument To Source'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -241,8 +242,8 @@ class HandoverDemoSM(Behavior):
                     timeout_sec=self.wait_for_release_timeout_sec
                 ),
                 transitions={'done': 'Open Gripper For Release',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Return Instrument To Source',
+                             'unavailable': 'Return Instrument To Source'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -257,8 +258,8 @@ class HandoverDemoSM(Behavior):
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Retreat After Release',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Recovery Return To P0',
+                             'unavailable': 'Recovery Return To P0'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -273,8 +274,8 @@ class HandoverDemoSM(Behavior):
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Return To P0',
-                             'failed': 'failed',
-                             'unavailable': 'failed'},
+                             'failed': 'Recovery Return To P0',
+                             'unavailable': 'Recovery Return To P0'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -297,11 +298,78 @@ class HandoverDemoSM(Behavior):
                 remapping={'response_message': 'response_message'}
             )
 
+            # x:1030 y:260
+            OperatableStateMachine.add(
+                'Abort Open Gripper',
+                TriggerServiceState(
+                    '/open_gripper',
+                    timeout_sec=self.service_timeout_sec
+                ),
+                transitions={'done': 'Abort Return To P0',
+                             'failed': 'Abort Return To P0',
+                             'unavailable': 'Abort Return To P0'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off},
+                remapping={'response_message': 'response_message'}
+            )
+
+            # x:1230 y:260
+            OperatableStateMachine.add(
+                'Abort Return To P0',
+                TriggerServiceState(
+                    '/move_to_p0',
+                    timeout_sec=self.service_timeout_sec
+                ),
+                transitions={'done': 'failed',
+                             'failed': 'failed',
+                             'unavailable': 'failed'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off},
+                remapping={'response_message': 'response_message'}
+            )
+
+            # x:1830 y:260
+            OperatableStateMachine.add(
+                'Return Instrument To Source',
+                TriggerServiceState(
+                    '/return_instrument_to_source',
+                    timeout_sec=self._return_instrument_timeout()
+                ),
+                transitions={'done': 'failed',
+                             'failed': 'failed',
+                             'unavailable': 'failed'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off},
+                remapping={'response_message': 'response_message'}
+            )
+
+            # x:2630 y:260
+            OperatableStateMachine.add(
+                'Recovery Return To P0',
+                TriggerServiceState(
+                    '/move_to_p0',
+                    timeout_sec=self.service_timeout_sec
+                ),
+                transitions={'done': 'failed',
+                             'failed': 'failed',
+                             'unavailable': 'failed'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off},
+                remapping={'response_message': 'response_message'}
+            )
+
         return state_machine
 
     @staticmethod
     def _retry_timeout(retry_count, retry_delay_sec):
         return 10.0 + (float(retry_count) * float(retry_delay_sec))
+
+    def _return_instrument_timeout(self):
+        return max(self.service_timeout_sec, 30.0)
 
     def _hand_node_params_file(self):
         if self.hand_node_params_file:

@@ -6,7 +6,7 @@
   <author>huitao</author>
   <date>2026-04-29</date>
   <description>
-    Linear FlexBE behavior for the RSN voice-guided xArm/ZED handover demo.
+    FlexBE behavior for the RSN voice-guided xArm/ZED handover demo with basic recovery paths.
   </description>
 
   <params>

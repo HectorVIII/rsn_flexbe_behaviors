@@ -47,10 +47,12 @@ class LaunchHandNodeState(EventState):
         self._process = None
         self._start_time = None
         self._srv = None
+        self._keep_process_on_exit = False
 
     def on_enter(self, userdata):
         """Launch the process and prepare the service availability check."""
         self._start_time = self._now()
+        self._keep_process_on_exit = False
         self._cleanup_process()
 
         cmd = ['ros2', 'run', self._package_name, self._executable]
@@ -88,6 +90,7 @@ class LaunchHandNodeState(EventState):
             return None
 
         if not self._required_service_name:
+            self._keep_process_on_exit = True
             return 'launched'
 
         if self._srv.is_available(
@@ -97,6 +100,7 @@ class LaunchHandNodeState(EventState):
             Logger.loginfo(
                 f'Service {self._required_service_name} is available.'
             )
+            self._keep_process_on_exit = True
             return 'launched'
 
         if elapsed > self._service_timeout_sec:
@@ -108,8 +112,14 @@ class LaunchHandNodeState(EventState):
 
         return None
 
+    def on_exit(self, userdata):
+        """Clean up the process if this state exits on a failure outcome."""
+        if not self._keep_process_on_exit:
+            self._cleanup_process()
+
     def on_stop(self):
         """Clean up the launched hand node if the behavior is stopped."""
+        self._keep_process_on_exit = False
         self._cleanup_process()
 
     def _cleanup_process(self):
