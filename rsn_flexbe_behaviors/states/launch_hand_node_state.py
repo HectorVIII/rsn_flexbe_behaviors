@@ -51,7 +51,7 @@ class LaunchHandNodeState(EventState):
     def on_enter(self, userdata):
         """Launch the process and prepare the service availability check."""
         self._start_time = self._now()
-        self._process = None
+        self._cleanup_process()
 
         cmd = ['ros2', 'run', self._package_name, self._executable]
         if self._params_file:
@@ -107,6 +107,38 @@ class LaunchHandNodeState(EventState):
             return 'service_unavailable'
 
         return None
+
+    def on_stop(self):
+        """Clean up the launched hand node if the behavior is stopped."""
+        self._cleanup_process()
+
+    def _cleanup_process(self):
+        if self._process is None:
+            return
+
+        exit_code = self._process.poll()
+        if exit_code is not None:
+            Logger.loginfo(
+                f'Hand node process already exited with code {exit_code}.'
+            )
+            self._process = None
+            return
+
+        Logger.loginfo('Terminating launched hand node process...')
+        self._process.terminate()
+
+        try:
+            self._process.wait(timeout=3.0)
+            Logger.loginfo('Hand node process terminated.')
+        except subprocess.TimeoutExpired:
+            Logger.logwarn(
+                'Hand node process did not terminate in time. Killing it...'
+            )
+            self._process.kill()
+            self._process.wait(timeout=3.0)
+            Logger.loginfo('Hand node process killed.')
+        finally:
+            self._process = None
 
     @staticmethod
     def _now():
