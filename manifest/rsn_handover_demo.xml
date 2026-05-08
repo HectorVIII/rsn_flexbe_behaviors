@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <behavior name="RSN Handover Demo">
-  <executable package_path="rsn_flexbe_behaviors.handover_demo_sm" class="HandoverDemoSM" />
+  <executable package_path="rsn_flexbe_behaviors.rsn_handover_demo_sm" class="RSNHandoverDemoSM" />
   <tagstring>rsn handover flexbe</tagstring>
   <author>huitao</author>
   <date>2026-04-29</date>
@@ -14,6 +14,15 @@
       <min value="0.1" />
       <max value="300.0" />
     </param>
+    <param type="numeric" name="xarm_speed" default="50.0" label="xArm speed" hint="Linear motion speed in mm/s applied before the first arm movement.">
+      <min value="1.0" />
+      <max value="500.0" />
+    </param>
+    <param type="numeric" name="xarm_acc" default="100.0" label="xArm acceleration" hint="Linear motion acceleration in mm/s^2 applied before the first arm movement.">
+      <min value="1.0" />
+      <max value="5000.0" />
+    </param>
+    <param type="text" name="xarm_param_service" default="/xarm_controller_node/set_parameters" label="xArm parameter service" hint="ROS parameter service used to set xArm motion parameters." />
     <param type="numeric" name="voice_timeout_sec" default="30.0" label="Voice timeout" hint="Maximum time to wait for a voice target.">
       <min value="0.1" />
       <max value="300.0" />
