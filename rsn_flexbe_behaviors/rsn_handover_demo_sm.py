@@ -289,11 +289,13 @@ class RSNHandoverDemoSM(Behavior):
                 WaitForReleaseState(
                     timeout_sec=self.wait_for_release_timeout_sec
                 ),
-                transitions={'done': 'Open Gripper For Release',
-                             'failed': 'Return Instrument To Source',
+                transitions={'released': 'Open Gripper For Release',
+                             'timeout': 'Return Instrument To Source',
+                             'sensor_error': 'Return Instrument To Source',
                              'unavailable': 'Return Instrument To Source'},
-                autonomy={'done': Autonomy.Off,
-                          'failed': Autonomy.Off,
+                autonomy={'released': Autonomy.Off,
+                          'timeout': Autonomy.Off,
+                          'sensor_error': Autonomy.Off,
                           'unavailable': Autonomy.Off},
                 remapping={'response_message': 'response_message'}
             )
