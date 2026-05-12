@@ -47,20 +47,9 @@
       <min value="0.1" />
       <max value="600.0" />
     </param>
-    <param type="numeric" name="instrument_node_exit_delay_sec" default="0.5" label="Instrument exit delay" hint="Delay before launching zed_hand_node to let instrument detection release the camera.">
+    <param type="numeric" name="instrument_node_exit_delay_sec" default="0.5" label="Instrument exit delay" hint="Delay before starting hand detection to let instrument detection release the camera.">
       <min value="0.0" />
       <max value="30.0" />
     </param>
-    <param type="text" name="hand_node_package" default="rsn" label="Hand node package" hint="Package used by LaunchHandNodeState." />
-    <param type="text" name="hand_node_executable" default="zed_hand_node" label="Hand node executable" hint="Executable used by LaunchHandNodeState." />
-    <param type="numeric" name="hand_node_startup_delay_sec" default="0.5" label="Hand launch delay" hint="Delay before checking hand node service availability.">
-      <min value="0.0" />
-      <max value="30.0" />
-    </param>
-    <param type="numeric" name="hand_node_service_timeout_sec" default="20.0" label="Hand service timeout" hint="Maximum time to wait for hand node services after launch.">
-      <min value="0.1" />
-      <max value="300.0" />
-    </param>
-    <param type="text" name="hand_node_params_file" default="" label="Hand node params" hint="Optional zed_hand_node params file. Empty uses rsn/config/zed_hand_params.yaml." />
   </params>
 </behavior>

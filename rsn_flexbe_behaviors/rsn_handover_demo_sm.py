@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
 """FlexBE behavior for the RSN handover demo."""
 
-from ament_index_python.packages import (
-    PackageNotFoundError,
-    get_package_share_directory
-)
 from flexbe_core import Autonomy, Behavior, OperatableStateMachine
 from flexbe_states.wait_state import WaitState
 
-from rsn_flexbe_behaviors.states.launch_hand_node_state import (
-    LaunchHandNodeState
-)
 from rsn_flexbe_behaviors.states.return_instrument_to_source_state import (
     ReturnInstrumentToSourceState
 )
@@ -68,7 +61,6 @@ class RSNHandoverDemoSM(Behavior):
         StartInstrumentDetectionState.initialize_ros(node)
         WaitForReleaseState.initialize_ros(node)
         WaitForVoiceTargetState.initialize_ros(node)
-        LaunchHandNodeState.initialize_ros(node)
         ReturnInstrumentToSourceState.initialize_ros(node)
         SetXArmMotionParamsState.initialize_ros(node)
         WaitState.initialize_ros(node)
@@ -88,11 +80,6 @@ class RSNHandoverDemoSM(Behavior):
         self.add_parameter('hand_move_retry_delay_sec', 1.0)
         self.add_parameter('wait_for_release_timeout_sec', 120.0)
         self.add_parameter('instrument_node_exit_delay_sec', 0.5)
-        self.add_parameter('hand_node_package', 'rsn')
-        self.add_parameter('hand_node_executable', 'zed_hand_node')
-        self.add_parameter('hand_node_startup_delay_sec', 0.5)
-        self.add_parameter('hand_node_service_timeout_sec', 20.0)
-        self.add_parameter('hand_node_params_file', '')
 
     def create(self):
         """Create the handover state machine with basic recovery paths."""
@@ -210,27 +197,8 @@ class RSNHandoverDemoSM(Behavior):
             OperatableStateMachine.add(
                 'Wait For Instrument Camera Release',
                 WaitState(wait_time=self.instrument_node_exit_delay_sec),
-                transitions={'done': 'Launch Hand Node'},
+                transitions={'done': 'Start Hand Detection'},
                 autonomy={'done': Autonomy.Off}
-            )
-
-            # x:1830 y:40
-            OperatableStateMachine.add(
-                'Launch Hand Node',
-                LaunchHandNodeState(
-                    package_name=self.hand_node_package,
-                    executable=self.hand_node_executable,
-                    params_file=self._hand_node_params_file(),
-                    startup_delay_sec=self.hand_node_startup_delay_sec,
-                    required_service_name='/start_hand_detection',
-                    service_timeout_sec=self.hand_node_service_timeout_sec
-                ),
-                transitions={'launched': 'Start Hand Detection',
-                             'failed': 'Return Instrument To Source',
-                             'service_unavailable': 'Return Instrument To Source'},
-                autonomy={'launched': Autonomy.Off,
-                          'failed': Autonomy.Off,
-                          'service_unavailable': Autonomy.Off}
             )
 
             # x:2030 y:40
@@ -384,13 +352,3 @@ class RSNHandoverDemoSM(Behavior):
 
     def _return_instrument_timeout(self):
         return max(self.service_timeout_sec, 30.0)
-
-    def _hand_node_params_file(self):
-        if self.hand_node_params_file:
-            return self.hand_node_params_file
-
-        try:
-            package_share = get_package_share_directory('rsn')
-            return package_share + '/config/zed_hand_params.yaml'
-        except PackageNotFoundError:
-            return ''
