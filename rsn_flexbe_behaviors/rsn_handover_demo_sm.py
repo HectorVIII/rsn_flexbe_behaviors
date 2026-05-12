@@ -14,11 +14,8 @@ from rsn_flexbe_behaviors.states.launch_hand_node_state import (
 from rsn_flexbe_behaviors.states.return_instrument_to_source_state import (
     ReturnInstrumentToSourceState
 )
-from rsn_flexbe_behaviors.states.close_gripper_state import (
-    CloseGripperState
-)
-from rsn_flexbe_behaviors.states.lift_after_grasp_state import (
-    LiftAfterGraspState
+from rsn_flexbe_behaviors.states.grasp_and_lift_state import (
+    GraspAndLiftState
 )
 from rsn_flexbe_behaviors.states.move_to_hand_state import (
     MoveToHandState
@@ -61,8 +58,7 @@ class RSNHandoverDemoSM(Behavior):
         self.name = 'RSN Handover Demo'
         self.node = node
 
-        CloseGripperState.initialize_ros(node)
-        LiftAfterGraspState.initialize_ros(node)
+        GraspAndLiftState.initialize_ros(node)
         MoveToHandState.initialize_ros(node)
         MoveToInstrumentState.initialize_ros(node)
         MoveToP0State.initialize_ros(node)
@@ -188,7 +184,7 @@ class RSNHandoverDemoSM(Behavior):
                     retry_count=self.instrument_move_retry_count,
                     retry_delay_sec=self.instrument_move_retry_delay_sec
                 ),
-                transitions={'done': 'Close Gripper',
+                transitions={'done': 'Grasp And Lift',
                              'failed': 'Abort Return To P0',
                              'unavailable': 'Abort Return To P0'},
                 autonomy={'done': Autonomy.Off,
@@ -199,21 +195,8 @@ class RSNHandoverDemoSM(Behavior):
 
             # x:1230 y:40
             OperatableStateMachine.add(
-                'Close Gripper',
-                CloseGripperState(timeout_sec=self.service_timeout_sec),
-                transitions={'done': 'Lift After Grasp',
-                             'failed': 'Abort Open Gripper',
-                             'unavailable': 'Abort Open Gripper'},
-                autonomy={'done': Autonomy.Off,
-                          'failed': Autonomy.Off,
-                          'unavailable': Autonomy.Off},
-                remapping={'response_message': 'response_message'}
-            )
-
-            # x:1430 y:40
-            OperatableStateMachine.add(
-                'Lift After Grasp',
-                LiftAfterGraspState(timeout_sec=self.service_timeout_sec),
+                'Grasp And Lift',
+                GraspAndLiftState(timeout_sec=self.service_timeout_sec),
                 transitions={'done': 'Wait For Instrument Camera Release',
                              'failed': 'Abort Open Gripper',
                              'unavailable': 'Abort Open Gripper'},
