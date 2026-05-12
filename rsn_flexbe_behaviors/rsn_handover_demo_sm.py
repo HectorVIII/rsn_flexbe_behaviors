@@ -75,8 +75,8 @@ class RSNHandoverDemoSM(Behavior):
         OperatableStateMachine.initialize_ros(node)
 
         self.add_parameter('service_timeout_sec', 10.0)
-        self.add_parameter('xarm_speed', 50.0)
-        self.add_parameter('xarm_acc', 100.0)
+        self.add_parameter('xarm_speed', 80.0)
+        self.add_parameter('xarm_acc', 200.0)
         self.add_parameter(
             'xarm_param_service',
             '/xarm_controller_node/set_parameters'
@@ -87,7 +87,7 @@ class RSNHandoverDemoSM(Behavior):
         self.add_parameter('hand_move_retry_count', 19)
         self.add_parameter('hand_move_retry_delay_sec', 1.0)
         self.add_parameter('wait_for_release_timeout_sec', 120.0)
-        self.add_parameter('instrument_node_exit_delay_sec', 1.5)
+        self.add_parameter('instrument_node_exit_delay_sec', 0.5)
         self.add_parameter('hand_node_package', 'rsn')
         self.add_parameter('hand_node_executable', 'zed_hand_node')
         self.add_parameter('hand_node_startup_delay_sec', 0.5)
