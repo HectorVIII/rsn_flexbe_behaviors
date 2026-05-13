@@ -13,8 +13,8 @@ from rsn_flexbe_behaviors.states.grasp_and_lift_state import (
 from rsn_flexbe_behaviors.states.move_to_hand_state import (
     MoveToHandState
 )
-from rsn_flexbe_behaviors.states.move_to_instrument_state import (
-    MoveToInstrumentState
+from rsn_flexbe_behaviors.states.move_to_instrument_hover_state import (
+    MoveToInstrumentHoverState
 )
 from rsn_flexbe_behaviors.states.move_to_p0_state import (
     MoveToP0State
@@ -33,6 +33,9 @@ from rsn_flexbe_behaviors.states.start_instrument_detection_state import (
 )
 from rsn_flexbe_behaviors.states.wait_for_release_service_state import (
     WaitForReleaseState
+)
+from rsn_flexbe_behaviors.states.visual_servo_to_instrument_state import (
+    VisualServoToInstrumentState
 )
 from rsn_flexbe_behaviors.states.set_xarm_motion_params_state import (
     SetXArmMotionParamsState
@@ -53,13 +56,14 @@ class RSNHandoverDemoSM(Behavior):
 
         GraspAndLiftState.initialize_ros(node)
         MoveToHandState.initialize_ros(node)
-        MoveToInstrumentState.initialize_ros(node)
+        MoveToInstrumentHoverState.initialize_ros(node)
         MoveToP0State.initialize_ros(node)
         OpenGripperState.initialize_ros(node)
         RetreatAfterReleaseState.initialize_ros(node)
         StartHandDetectionState.initialize_ros(node)
         StartInstrumentDetectionState.initialize_ros(node)
         WaitForReleaseState.initialize_ros(node)
+        VisualServoToInstrumentState.initialize_ros(node)
         WaitForVoiceTargetState.initialize_ros(node)
         ReturnInstrumentToSourceState.initialize_ros(node)
         SetXArmMotionParamsState.initialize_ros(node)
@@ -151,7 +155,7 @@ class RSNHandoverDemoSM(Behavior):
                 StartInstrumentDetectionState(
                     timeout_sec=self.service_timeout_sec
                 ),
-                transitions={'done': 'Move To Instrument',
+                transitions={'done': 'Move To Instrument Hover',
                              'failed': 'Abort Return To P0',
                              'unavailable': 'Abort Return To P0'},
                 autonomy={'done': Autonomy.Off,
@@ -162,8 +166,8 @@ class RSNHandoverDemoSM(Behavior):
 
             # x:1030 y:40
             OperatableStateMachine.add(
-                'Move To Instrument',
-                MoveToInstrumentState(
+                'Move To Instrument Hover',
+                MoveToInstrumentHoverState(
                     timeout_sec=self._retry_timeout(
                         self.instrument_move_retry_count,
                         self.instrument_move_retry_delay_sec
@@ -171,7 +175,7 @@ class RSNHandoverDemoSM(Behavior):
                     retry_count=self.instrument_move_retry_count,
                     retry_delay_sec=self.instrument_move_retry_delay_sec
                 ),
-                transitions={'done': 'Grasp And Lift',
+                transitions={'done': 'Visual Servo To Instrument',
                              'failed': 'Abort Return To P0',
                              'unavailable': 'Abort Return To P0'},
                 autonomy={'done': Autonomy.Off,
@@ -181,6 +185,21 @@ class RSNHandoverDemoSM(Behavior):
             )
 
             # x:1230 y:40
+            OperatableStateMachine.add(
+                'Visual Servo To Instrument',
+                VisualServoToInstrumentState(
+                    timeout_sec=self.service_timeout_sec
+                ),
+                transitions={'done': 'Grasp And Lift',
+                             'failed': 'Abort Open Gripper',
+                             'unavailable': 'Abort Open Gripper'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off},
+                remapping={'response_message': 'response_message'}
+            )
+
+            # x:1430 y:40
             OperatableStateMachine.add(
                 'Grasp And Lift',
                 GraspAndLiftState(timeout_sec=self.service_timeout_sec),
