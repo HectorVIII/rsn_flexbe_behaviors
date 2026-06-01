@@ -9,8 +9,6 @@ class MoveToInstrumentState(EventState):
     Moves the xArm to the detected instrument pose.
 
     -- timeout_sec     float  Maximum time to wait for service/result.
-    -- retry_count     int    Retries after success=False responses.
-    -- retry_delay_sec float  Delay between retries.
 
     #> response_message string  Service response message.
 
@@ -19,7 +17,7 @@ class MoveToInstrumentState(EventState):
     <= unavailable             Service was unavailable or timed out.
     """
 
-    def __init__(self, timeout_sec=29.5, retry_count=39, retry_delay_sec=0.5):
+    def __init__(self, timeout_sec=10.0):
         """Initialize the move-to-instrument state."""
         super().__init__(
             outcomes=['done', 'failed', 'unavailable'],
@@ -27,9 +25,7 @@ class MoveToInstrumentState(EventState):
         )
         self._delegate = TriggerServiceState(
             '/move_to_instrument',
-            timeout_sec=timeout_sec,
-            retry_count=retry_count,
-            retry_delay_sec=retry_delay_sec
+            timeout_sec=timeout_sec
         )
 
     def on_enter(self, userdata):

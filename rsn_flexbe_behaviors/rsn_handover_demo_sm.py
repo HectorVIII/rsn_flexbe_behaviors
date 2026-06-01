@@ -74,8 +74,7 @@ class RSNHandoverDemoSM(Behavior):
             '/xarm_controller_node/set_parameters'
         )
         self.add_parameter('voice_timeout_sec', 30.0)
-        self.add_parameter('instrument_move_retry_count', 39)
-        self.add_parameter('instrument_move_retry_delay_sec', 0.5)
+        self.add_parameter('instrument_detection_timeout_sec', 30.0)
         self.add_parameter('hand_move_retry_count', 19)
         self.add_parameter('hand_move_retry_delay_sec', 1.0)
         self.add_parameter('wait_for_release_timeout_sec', 120.0)
@@ -149,7 +148,7 @@ class RSNHandoverDemoSM(Behavior):
             OperatableStateMachine.add(
                 'Start Instrument Detection',
                 StartInstrumentDetectionState(
-                    timeout_sec=self.service_timeout_sec
+                    timeout_sec=self.instrument_detection_timeout_sec
                 ),
                 transitions={'done': 'Move To Instrument',
                              'failed': 'Abort Return To P0',
@@ -157,20 +156,14 @@ class RSNHandoverDemoSM(Behavior):
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
-                remapping={'response_message': 'response_message'}
+                remapping={'target_class': 'target_class',
+                           'response_message': 'response_message'}
             )
 
             # x:1030 y:40
             OperatableStateMachine.add(
                 'Move To Instrument',
-                MoveToInstrumentState(
-                    timeout_sec=self._retry_timeout(
-                        self.instrument_move_retry_count,
-                        self.instrument_move_retry_delay_sec
-                    ),
-                    retry_count=self.instrument_move_retry_count,
-                    retry_delay_sec=self.instrument_move_retry_delay_sec
-                ),
+                MoveToInstrumentState(timeout_sec=self.service_timeout_sec),
                 transitions={'done': 'Grasp And Lift',
                              'failed': 'Abort Return To P0',
                              'unavailable': 'Abort Return To P0'},
