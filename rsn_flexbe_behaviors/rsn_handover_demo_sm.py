@@ -66,9 +66,13 @@ class RSNHandoverDemoSM(Behavior):
         WaitState.initialize_ros(node)
         OperatableStateMachine.initialize_ros(node)
 
-        self.add_parameter('service_timeout_sec', 10.0)
-        self.add_parameter('xarm_speed', 80.0)
-        self.add_parameter('xarm_acc', 200.0)
+        # Must exceed the longest MoveIt service round-trip.  At
+        # velocity_scaling=0.1 the instrument-approach (hover + LIN descend)
+        # and joint-space MOVE_TO_P0 each take ~13-16 s, so 10 s was tripping
+        # 'unavailable' on every call and routing FlexBE down the abort path.
+        self.add_parameter('service_timeout_sec', 60.0)
+        self.add_parameter('xarm_velocity_scaling', 0.1)
+        self.add_parameter('xarm_acceleration_scaling', 0.1)
         self.add_parameter(
             'xarm_param_service',
             '/xarm_controller_node/set_parameters'
@@ -93,8 +97,8 @@ class RSNHandoverDemoSM(Behavior):
                 'Set XArm Motion Params',
                 SetXArmMotionParamsState(
                     service_name=self.xarm_param_service,
-                    speed=self.xarm_speed,
-                    acc=self.xarm_acc,
+                    velocity_scaling=self.xarm_velocity_scaling,
+                    acceleration_scaling=self.xarm_acceleration_scaling,
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Move To P0',

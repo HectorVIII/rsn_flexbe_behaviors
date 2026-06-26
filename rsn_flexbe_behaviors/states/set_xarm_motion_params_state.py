@@ -8,12 +8,16 @@ from rcl_interfaces.srv import SetParameters
 
 class SetXArmMotionParamsState(EventState):
     """
-    Sets speed and acceleration on xarm_controller_node.
+    Sets MoveIt velocity/acceleration scaling on xarm_controller_node.
 
-    -- service_name    string  Parameter service name.
-    -- speed           float   xArm linear speed in mm/s.
-    -- acc             float   xArm acceleration in mm/s^2.
-    -- timeout_sec     float   Maximum time to wait for service/result.
+    Motion is now planned by MoveIt, so the relevant knobs are scaling
+    factors in (0, 1] — NOT the legacy SDK mm/s units. 1.0 = robot's max
+    joint speed; 0.1 = 10%.
+
+    -- service_name           string  Parameter service name.
+    -- velocity_scaling       float   MoveIt velocity scaling in (0, 1].
+    -- acceleration_scaling   float   MoveIt acceleration scaling in (0, 1].
+    -- timeout_sec            float   Maximum time to wait for service/result.
 
     <= done                   Parameters were accepted.
     <= failed                 Parameter service rejected at least one value.
@@ -23,16 +27,16 @@ class SetXArmMotionParamsState(EventState):
     def __init__(
         self,
         service_name='/xarm_controller_node/set_parameters',
-        speed=50.0,
-        acc=100.0,
+        velocity_scaling=0.1,
+        acceleration_scaling=0.1,
         timeout_sec=10.0
     ):
         """Initialize the parameter-setting state."""
         super().__init__(outcomes=['done', 'failed', 'unavailable'])
 
         self._service_name = service_name
-        self._speed = float(speed)
-        self._acc = float(acc)
+        self._velocity_scaling = float(velocity_scaling)
+        self._acceleration_scaling = float(acceleration_scaling)
         self._timeout_sec = float(timeout_sec)
 
         self._srv = None
@@ -87,7 +91,8 @@ class SetXArmMotionParamsState(EventState):
 
         Logger.loginfo(
             'Set xArm motion parameters: '
-            f'speed={self._speed}, acc={self._acc}'
+            f'velocity_scaling={self._velocity_scaling}, '
+            f'acceleration_scaling={self._acceleration_scaling}'
         )
         return 'done'
 
@@ -98,8 +103,10 @@ class SetXArmMotionParamsState(EventState):
 
         request = SetParameters.Request()
         request.parameters = [
-            self._double_parameter('speed', self._speed),
-            self._double_parameter('acc', self._acc),
+            self._double_parameter('velocity_scaling', self._velocity_scaling),
+            self._double_parameter(
+                'acceleration_scaling', self._acceleration_scaling
+            ),
         ]
 
         self._srv.call_async(

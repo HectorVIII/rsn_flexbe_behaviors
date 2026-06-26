@@ -1,24 +1,38 @@
-"""Reusable FlexBE state for std_srvs/Trigger service calls."""
+"""Reusable helper for std_srvs/Trigger service calls.
+
+This is intentionally NOT a FlexBE EventState.  It is meant to be composed
+inside an EventState wrapper (e.g. MoveToP0State) which delegates its
+``on_enter`` and ``execute`` to this helper.
+
+Why not an EventState:
+    EventState.__init__ rebinds ``self.execute`` to ``_event_execute``,
+    which auto-fires ``on_enter`` once per activation.  If both the wrapper
+    AND this helper inherit EventState, the framework fires ``on_enter``
+    twice per state activation (wrapper's own auto-fire + the wrapper
+    manually calling ``delegate.on_enter`` inside its own on_enter), and
+    the underlying service is invoked twice.  Keeping this class as a
+    plain helper means only the outer wrapper is framework-wrapped.
+
+Outcomes and output keys are declared by the wrapping EventState, not here.
+"""
 
 from flexbe_core import EventState, Logger
 from flexbe_core.proxy import ProxyServiceCaller
 from std_srvs.srv import Trigger
 
 
-class TriggerServiceState(EventState):
-    """
-    Calls a std_srvs/Trigger service and returns based on the response.
+class TriggerServiceState:
+    """Drive a std_srvs/Trigger service and return outcomes via execute().
 
     -- service_name     string  Service to call.
     -- timeout_sec      float   Maximum time to wait for availability/result.
     -- retry_count      int     Retries after success=False responses.
     -- retry_delay_sec  float   Delay between retries.
 
-    #> response_message string  Service response message.
-
-    <= done                    Service returned success=True.
-    <= failed                  Service returned success=False or raised.
-    <= unavailable             Service was unavailable or timed out.
+    Outcome strings returned by ``execute`` (the wrapper exposes them):
+        'done'         Service returned success=True.
+        'failed'       Service returned success=False or raised.
+        'unavailable'  Service was unavailable or timed out.
     """
 
     def __init__(
@@ -28,12 +42,7 @@ class TriggerServiceState(EventState):
         retry_count=0,
         retry_delay_sec=0.5
     ):
-        """Initialize the trigger service state."""
-        super().__init__(
-            outcomes=['done', 'failed', 'unavailable'],
-            output_keys=['response_message']
-        )
-
+        """Initialize the trigger service helper."""
         self._service_name = service_name
         self._timeout_sec = float(timeout_sec)
         self._retry_count = int(retry_count)
