@@ -71,8 +71,8 @@ class RSNHandoverDemoSM(Behavior):
         # and joint-space MOVE_TO_P0 each take ~13-16 s, so 10 s was tripping
         # 'unavailable' on every call and routing FlexBE down the abort path.
         self.add_parameter('service_timeout_sec', 60.0)
-        self.add_parameter('xarm_velocity_scaling', 0.1)
-        self.add_parameter('xarm_acceleration_scaling', 0.1)
+        self.add_parameter('xarm_velocity_scaling', 0.05)
+        self.add_parameter('xarm_acceleration_scaling', 0.05)
         self.add_parameter(
             'xarm_param_service',
             '/xarm_controller_node/set_parameters'
@@ -345,7 +345,15 @@ class RSNHandoverDemoSM(Behavior):
 
     @staticmethod
     def _retry_timeout(retry_count, retry_delay_sec):
-        return 10.0 + (float(retry_count) * float(retry_delay_sec))
+        # Total time budget = execution_buffer + retry_count * retry_delay.
+        # execution_buffer must cover the longest expected single service
+        # call.  /move_to_hand does PERSN handover (hover Pilz PTP + descend
+        # OMPL), which at velocity_scaling=0.05 takes ~30 s; plus retries
+        # while waiting for the first valid hand pose can burn ~20 s.  Use
+        # 90 s so the FlexBE state does not return 'unavailable' mid-move
+        # (which would skip Wait For Release and send the arm straight back
+        # to source with the instrument still gripped).
+        return 90.0 + (float(retry_count) * float(retry_delay_sec))
 
     def _return_instrument_timeout(self):
         return max(self.service_timeout_sec, 30.0)
