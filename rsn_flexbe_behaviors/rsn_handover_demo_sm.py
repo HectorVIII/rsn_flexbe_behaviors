@@ -34,6 +34,9 @@ from rsn_flexbe_behaviors.states.start_instrument_detection_state import (
 from rsn_flexbe_behaviors.states.wait_for_release_service_state import (
     WaitForReleaseState
 )
+from rsn_flexbe_behaviors.states.set_instrument_detection_params_state import (
+    SetInstrumentDetectionParamsState
+)
 from rsn_flexbe_behaviors.states.set_xarm_motion_params_state import (
     SetXArmMotionParamsState
 )
@@ -63,6 +66,7 @@ class RSNHandoverDemoSM(Behavior):
         WaitForVoiceTargetState.initialize_ros(node)
         ReturnInstrumentToSourceState.initialize_ros(node)
         SetXArmMotionParamsState.initialize_ros(node)
+        SetInstrumentDetectionParamsState.initialize_ros(node)
         WaitState.initialize_ros(node)
         OperatableStateMachine.initialize_ros(node)
 
@@ -83,6 +87,11 @@ class RSNHandoverDemoSM(Behavior):
         self.add_parameter('hand_move_retry_delay_sec', 1.0)
         self.add_parameter('wait_for_release_timeout_sec', 120.0)
         self.add_parameter('instrument_node_exit_delay_sec', 0.5)
+        self.add_parameter('instrument_x_offset_m', -0.028)
+        self.add_parameter(
+            'instrument_param_service',
+            '/instrument_detection_node/set_parameters'
+        )
 
     def create(self):
         """Create the handover state machine with basic recovery paths."""
@@ -99,6 +108,22 @@ class RSNHandoverDemoSM(Behavior):
                     service_name=self.xarm_param_service,
                     velocity_scaling=self.xarm_velocity_scaling,
                     acceleration_scaling=self.xarm_acceleration_scaling,
+                    timeout_sec=self.service_timeout_sec
+                ),
+                transitions={'done': 'Set Instrument Detection Params',
+                             'failed': 'failed',
+                             'unavailable': 'failed'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off}
+            )
+
+            # x:130 y:40
+            OperatableStateMachine.add(
+                'Set Instrument Detection Params',
+                SetInstrumentDetectionParamsState(
+                    service_name=self.instrument_param_service,
+                    x_offset_m=self.instrument_x_offset_m,
                     timeout_sec=self.service_timeout_sec
                 ),
                 transitions={'done': 'Move To P0',
