@@ -161,11 +161,15 @@ class RSNHandoverDemoSM(Behavior):
             )
 
             # x:630 y:40
+            # Timeout self-loops: the arm is already at P0 whether we entered
+            # from the initial Open Gripper or from Return To P0, so no need
+            # to abort/re-home. `unavailable` is a real ROS subscription
+            # failure and still routes to the abort path.
             OperatableStateMachine.add(
                 'Wait For Voice Target',
                 WaitForVoiceTargetState(timeout_sec=self.voice_timeout_sec),
                 transitions={'received': 'Start Instrument Detection',
-                             'timeout': 'Abort Return To P0',
+                             'timeout': 'Wait For Voice Target',
                              'unavailable': 'Abort Return To P0'},
                 autonomy={'received': Autonomy.Off,
                           'timeout': Autonomy.Off,
@@ -174,14 +178,18 @@ class RSNHandoverDemoSM(Behavior):
             )
 
             # x:830 y:40
+            # Detection failure/timeout usually means "target not visible",
+            # "wrong instrument said", or "ZED failed to open" — not a
+            # hardware fault. Arm is still at P0 (never moved), so loop
+            # straight back to voice wait instead of aborting the demo.
             OperatableStateMachine.add(
                 'Start Instrument Detection',
                 StartInstrumentDetectionState(
                     timeout_sec=self.instrument_detection_timeout_sec
                 ),
                 transitions={'done': 'Move To Instrument',
-                             'failed': 'Abort Return To P0',
-                             'unavailable': 'Abort Return To P0'},
+                             'failed': 'Wait For Voice Target',
+                             'unavailable': 'Wait For Voice Target'},
                 autonomy={'done': Autonomy.Off,
                           'failed': Autonomy.Off,
                           'unavailable': Autonomy.Off},
@@ -300,10 +308,12 @@ class RSNHandoverDemoSM(Behavior):
             )
 
             # x:3030 y:40
+            # Loop back to Wait For Voice Target so the demo runs continuously.
+            # Exit is via FlexBE App (Preempt), not a state transition.
             OperatableStateMachine.add(
                 'Return To P0',
                 MoveToP0State(timeout_sec=self.service_timeout_sec),
-                transitions={'done': 'finished',
+                transitions={'done': 'Wait For Voice Target',
                              'failed': 'failed',
                              'unavailable': 'failed'},
                 autonomy={'done': Autonomy.Off,
