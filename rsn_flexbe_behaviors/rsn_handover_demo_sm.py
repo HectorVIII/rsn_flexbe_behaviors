@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """FlexBE behavior for the RSN handover demo."""
 
-from flexbe_core import Autonomy, Behavior, OperatableStateMachine
+from flexbe_core import Autonomy, Behavior, OperatableStateMachine, set_node
 from flexbe_states.wait_state import WaitState
 
 from rsn_flexbe_behaviors.states.return_instrument_to_source_state import (
@@ -43,6 +43,17 @@ from rsn_flexbe_behaviors.states.set_xarm_motion_params_state import (
 from rsn_flexbe_behaviors.states.wait_for_voice_target_state import (
     WaitForVoiceTargetState
 )
+from rsn_flexbe_behaviors.states.publish_handover_event_state import (
+    PublishHandoverEventState
+)
+from rsn_flexbe_behaviors.states.query_predicted_next_state import (
+    QueryPredictedNextState
+)
+from rsn_flexbe_behaviors.states.move_to_staging_state import (
+    MoveToStagingState
+)
+
+from rsn_interfaces.msg import HandoverEvent
 
 
 class RSNHandoverDemoSM(Behavior):
@@ -54,6 +65,7 @@ class RSNHandoverDemoSM(Behavior):
         self.name = 'RSN Handover Demo'
         self.node = node
 
+        set_node(node)
         GraspAndLiftState.initialize_ros(node)
         MoveToHandState.initialize_ros(node)
         MoveToInstrumentState.initialize_ros(node)
@@ -67,6 +79,9 @@ class RSNHandoverDemoSM(Behavior):
         ReturnInstrumentToSourceState.initialize_ros(node)
         SetXArmMotionParamsState.initialize_ros(node)
         SetInstrumentDetectionParamsState.initialize_ros(node)
+        PublishHandoverEventState.initialize_ros(node)
+        QueryPredictedNextState.initialize_ros(node)
+        MoveToStagingState.initialize_ros(node)
         WaitState.initialize_ros(node)
         OperatableStateMachine.initialize_ros(node)
 
@@ -92,6 +107,15 @@ class RSNHandoverDemoSM(Behavior):
             'instrument_param_service',
             '/instrument_detection_node/set_parameters'
         )
+        # Preload / workflow-estimator wiring.
+        self.add_parameter('query_prediction_timeout_sec', 2.0)
+        # Preload detection uses a MUCH shorter timeout than the voice-driven
+        # detection: if the predicted tool isn't visible in ~5 s, give up
+        # quietly and fall back to Return To P0 so the user's next voice
+        # command is heard promptly. The full 30 s tolerance is only for the
+        # voice-triggered Start Instrument Detection where the surgeon has
+        # explicitly asked for the tool.
+        self.add_parameter('preload_detection_timeout_sec', 5.0)
 
     def create(self):
         """Create the handover state machine with basic recovery paths."""
@@ -148,6 +172,12 @@ class RSNHandoverDemoSM(Behavior):
             )
 
             # x:430 y:40
+            # Cold-start: do NOT preload. At boot the scene may not be ready
+            # (instruments not yet on tray, surgeon not in position, camera
+            # still warming up) and moving the arm without a voice cue is
+            # surprising. Only enter the preload chain on the LOOP path (from
+            # Retreat After Release), where the previous handover implies the
+            # scene is active.
             OperatableStateMachine.add(
                 'Open Gripper',
                 OpenGripperState(timeout_sec=self.service_timeout_sec),
@@ -168,7 +198,7 @@ class RSNHandoverDemoSM(Behavior):
             OperatableStateMachine.add(
                 'Wait For Voice Target',
                 WaitForVoiceTargetState(timeout_sec=self.voice_timeout_sec),
-                transitions={'received': 'Start Instrument Detection',
+                transitions={'received': 'Publish Requested Event',
                              'timeout': 'Wait For Voice Target',
                              'unavailable': 'Abort Return To P0'},
                 autonomy={'received': Autonomy.Off,
@@ -295,10 +325,14 @@ class RSNHandoverDemoSM(Behavior):
             )
 
             # x:2830 y:40
+            # Instead of unconditionally returning to P0, ask the workflow
+            # estimator what the next tool is likely to be and try to preload
+            # the arm above it. On any failure of that chain we fall through
+            # to Return To P0 as before.
             OperatableStateMachine.add(
                 'Retreat After Release',
                 RetreatAfterReleaseState(timeout_sec=self.service_timeout_sec),
-                transitions={'done': 'Return To P0',
+                transitions={'done': 'Query Predicted Next',
                              'failed': 'Recovery Return To P0',
                              'unavailable': 'Recovery Return To P0'},
                 autonomy={'done': Autonomy.Off,
@@ -308,8 +342,75 @@ class RSNHandoverDemoSM(Behavior):
             )
 
             # x:3030 y:40
-            # Loop back to Wait For Voice Target so the demo runs continuously.
-            # Exit is via FlexBE App (Preempt), not a state transition.
+            # Preload chain: consult workflow_state_estimator, if it has a
+            # prediction fetch that tool's pose and stage above it; otherwise
+            # fall through to plain Return To P0.
+            OperatableStateMachine.add(
+                'Query Predicted Next',
+                QueryPredictedNextState(
+                    timeout_sec=self.query_prediction_timeout_sec
+                ),
+                transitions={'has_prediction': 'Preload Instrument Detection',
+                             'no_prediction': 'Return To P0'},
+                autonomy={'has_prediction': Autonomy.Off,
+                          'no_prediction': Autonomy.Off},
+                remapping={'target_class': 'target_class'}
+            )
+
+            # x:3230 y:40
+            # Runs instrument detection with the estimator's predicted tool
+            # so xarm_controller_node.latest_instrument_pose points at it
+            # when Move To Staging is called. Any failure falls back to a
+            # plain Return To P0 so we never make the loop worse than today.
+            OperatableStateMachine.add(
+                'Preload Instrument Detection',
+                StartInstrumentDetectionState(
+                    timeout_sec=self.preload_detection_timeout_sec
+                ),
+                transitions={'done': 'Move To Staging',
+                             'failed': 'Return To P0',
+                             'unavailable': 'Return To P0'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off},
+                remapping={'target_class': 'target_class',
+                           'response_message': 'response_message'}
+            )
+
+            # x:3430 y:40
+            # Park above the predicted tool at staging_hover_offset_mm.
+            OperatableStateMachine.add(
+                'Move To Staging',
+                MoveToStagingState(timeout_sec=self.service_timeout_sec),
+                transitions={'done': 'Wait For Voice Target',
+                             'failed': 'Return To P0',
+                             'unavailable': 'Return To P0'},
+                autonomy={'done': Autonomy.Off,
+                          'failed': Autonomy.Off,
+                          'unavailable': Autonomy.Off},
+                remapping={'response_message': 'response_message'}
+            )
+
+            # x:730 y:140
+            # Feed workflow_state_estimator so it can advance step belief.
+            # Publishes REQUESTED with the actual voice target (not the
+            # preload target), so estimator sees what the surgeon actually
+            # asked for regardless of whether our preload was correct.
+            OperatableStateMachine.add(
+                'Publish Requested Event',
+                PublishHandoverEventState(
+                    event_type=HandoverEvent.REQUESTED,
+                    topic='/handover_event'
+                ),
+                transitions={'done': 'Start Instrument Detection'},
+                autonomy={'done': Autonomy.Off},
+                remapping={'target_class': 'target_class'}
+            )
+
+            # x:3630 y:40
+            # Fallback path when the estimator has no prediction (end of
+            # workflow) or is unavailable. Same behaviour as the pre-preload
+            # loop-back to Wait For Voice Target.
             OperatableStateMachine.add(
                 'Return To P0',
                 MoveToP0State(timeout_sec=self.service_timeout_sec),

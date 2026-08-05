@@ -52,5 +52,13 @@
       <max value="0.100" />
     </param>
     <param type="text" name="instrument_param_service" default="/instrument_detection_node/set_parameters" label="Instrument parameter service" hint="ROS parameter service used to set instrument detection parameters." />
+    <param type="numeric" name="query_prediction_timeout_sec" default="2.0" label="Query prediction timeout" hint="Max wait for the first WorkflowState message. On timeout the SM falls back to plain Return To P0 (estimator not running).">
+      <min value="0.1" />
+      <max value="30.0" />
+    </param>
+    <param type="numeric" name="preload_detection_timeout_sec" default="5.0" label="Preload detection timeout" hint="Short timeout for the preload YOLO pass. If the predicted tool isn't visible quickly, fall back to Return To P0 so voice can be heard again.">
+      <min value="0.5" />
+      <max value="30.0" />
+    </param>
   </params>
 </behavior>
