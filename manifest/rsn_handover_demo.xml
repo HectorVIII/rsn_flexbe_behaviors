@@ -47,7 +47,7 @@
       <min value="0.0" />
       <max value="30.0" />
     </param>
-    <param type="numeric" name="instrument_x_offset_m" default="-0.028" label="Instrument x_offset_m" hint="Residual camera->base x offset (meters) applied to grasp pose. Pushed to /instrument_detection_node/set_parameters at behavior start.">
+    <param type="numeric" name="instrument_x_offset_m" default="0" label="Instrument x_offset_m" hint="Residual camera->base x offset (meters) applied to grasp pose. Pushed to /instrument_detection_node/set_parameters at behavior start.">
       <min value="-0.100" />
       <max value="0.100" />
     </param>
