@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<behavior name="RSN Radius Procedure">
+  <executable package_path="rsn_flexbe_behaviors.rsn_radius_procedure_sm" class="RSNRadiusProcedureSM" />
+  <tagstring>rsn radius surgical workflow flexbe</tagstring>
+  <author>huitao</author>
+  <date>2026-08-12</date>
+  <description>
+    L1 FSM over the 10-phase distal-radius (volar FCR) workflow. Each phase announces itself, waits for an operator command (tool name / next / back / done), and dispatches tool requests to the L2 handover BT via the /run_handover action.
+  </description>
+
+  <params>
+    <param type="text" name="run_handover_action" default="/run_handover" label="RunHandover action" hint="Action name exposed by handover_bt_node." />
+    <param type="numeric" name="handover_timeout_sec" default="120.0" label="Handover timeout" hint="Timeout passed to each L2 handover episode.">
+      <min value="10.0" />
+      <max value="600.0" />
+    </param>
+  </params>
+</behavior>
