@@ -14,6 +14,7 @@ Outcomes
 from action_msgs.msg import GoalStatus
 from flexbe_core import EventState, Logger
 from flexbe_core.proxy import ProxyActionClient
+from std_msgs.msg import String
 
 from rsn_interfaces.action import RunHandover
 
@@ -36,6 +37,7 @@ class RunHandoverActionState(EventState):
         action_topic='/run_handover',
         timeout_sec=0.0,
         source_slot='',
+        operator_topic='/rsn/operator_cmd',
     ):
         super().__init__(
             outcomes=['released', 'canceled', 'failed'],
@@ -45,15 +47,32 @@ class RunHandoverActionState(EventState):
         self._action_topic = action_topic
         self._timeout_sec = float(timeout_sec)
         self._source_slot = source_slot
+        self._operator_topic = operator_topic
         self._client = None
         self._sent = False
         self._last_phase = ''
+        self._op_sub = None
+        # Set by the subscription; consumed by execute() to trigger a cancel.
+        self._cancel_requested = False
 
     # ------------------------------------------------------------------
     def on_enter(self, userdata):
         userdata.reason = ''
         self._sent = False
         self._last_phase = ''
+        self._cancel_requested = False
+
+        # Subscribe once (per state instance) to the operator channel so
+        # a spoken "cancel" while a handover is running preempts the goal.
+        if self._op_sub is None:
+            try:
+                self._op_sub = EventState._node.create_subscription(
+                    String, self._operator_topic, self._on_op_msg, 10
+                )
+            except Exception as exc:  # pylint: disable=broad-except
+                Logger.logwarn(
+                    f'Subscribe {self._operator_topic} failed: {exc}'
+                )
 
         if self._client is None:
             if ProxyActionClient._node is None:
@@ -90,6 +109,18 @@ class RunHandoverActionState(EventState):
             userdata.reason = 'aborted'
             return 'failed'
 
+        # Operator "cancel" arrived while the handover was running: send
+        # one cancel and keep polling — final outcome comes from the
+        # action result (reason='canceled').
+        if self._cancel_requested:
+            self._cancel_requested = False
+            if ProxyActionClient.is_active(self._action_topic):
+                try:
+                    ProxyActionClient.cancel(self._action_topic)
+                    Logger.loginfo('Operator cancel: sent cancel to /run_handover.')
+                except Exception as exc:  # pylint: disable=broad-except
+                    Logger.logwarn(f'Operator cancel failed: {exc}')
+
         if ProxyActionClient.has_feedback(self._action_topic):
             fb = ProxyActionClient.get_feedback(self._action_topic)
             ProxyActionClient.remove_feedback(self._action_topic)
@@ -120,6 +151,16 @@ class RunHandoverActionState(EventState):
             Logger.loginfo(f'Handover done: {reason}')
             return 'released'
 
+        # retreat_failed: tool was actually delivered + released; only the
+        # arm's return leg failed. Don't block the workflow — surface a
+        # warning but let the phase move on as if released.
+        if reason == 'retreat_failed':
+            Logger.logwarn(
+                'Handover delivered but retreat failed — arm may not be at P0. '
+                'Continuing.'
+            )
+            return 'released'
+
         Logger.logwarn(f'Handover failed: {reason}')
         return 'failed'
 
@@ -137,3 +178,9 @@ class RunHandoverActionState(EventState):
         if hasattr(ProxyActionClient, 'get_status'):
             return ProxyActionClient.get_status(self._action_topic)
         return ProxyActionClient.get_state(self._action_topic)
+
+    # ------------------------------------------------------------------
+    def _on_op_msg(self, msg):
+        cmd = (msg.data or '').strip().lower()
+        if cmd == 'cancel':
+            self._cancel_requested = True
